@@ -58,3 +58,29 @@ def transformar(filas):
         for (pozo, mes), (dias, total) in sorted(acumulado.items())
     ]
     return registros, descartadas
+
+
+def cargar(conexion, registros):
+    """
+    Crea la tabla destino (DDL en schema.sql) y carga los registros.
+
+    Evita duplicados: la clave primaria (pozo, mes) junto con
+    ON CONFLICT ... DO UPDATE hace que volver a correr el script
+    actualice las filas existentes en vez de insertarlas de nuevo.
+    """
+    with open(RUTA_SCHEMA, encoding="utf-8") as archivo:
+        conexion.executescript(archivo.read())
+
+    with conexion:  # commit automatico, o rollback si hay un error
+        conexion.executemany(
+            """
+            INSERT INTO produccion_mensual
+                (pozo, mes, dias_produccion, petroleo_total, petroleo_promedio_diario)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (pozo, mes) DO UPDATE SET
+                dias_produccion          = excluded.dias_produccion,
+                petroleo_total           = excluded.petroleo_total,
+                petroleo_promedio_diario = excluded.petroleo_promedio_diario
+            """,
+            registros,
+        )
