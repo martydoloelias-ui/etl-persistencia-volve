@@ -84,3 +84,36 @@ def cargar(conexion, registros):
             """,
             registros,
         )
+
+
+def main():
+    print("1/3 Extrayendo datos...")
+    filas = extraer(RUTA_CSV)
+    if not filas:
+        print("No hay datos para procesar. Se cancela el proceso.")
+        return
+    print(f"    Filas leidas: {len(filas)}")
+
+    print("2/3 Transformando (agregacion mensual por pozo)...")
+    registros, descartadas = transformar(filas)
+    print(f"    Registros mensuales: {len(registros)} | filas descartadas: {descartadas}")
+
+    print("3/3 Cargando en SQLite...")
+    try:
+        conexion = sqlite3.connect(RUTA_DB)
+        try:
+            cargar(conexion, registros)
+            total = conexion.execute(
+                "SELECT COUNT(*) FROM produccion_mensual"
+            ).fetchone()[0]
+        finally:
+            conexion.close()
+    except (sqlite3.Error, FileNotFoundError) as error:
+        print(f"[ERROR] No se pudo cargar en la base de datos: {error}")
+        return
+    print(f"    Filas en produccion_mensual: {total}")
+    print("Proceso completado.")
+
+
+if __name__ == "__main__":
+    main()
