@@ -26,3 +26,35 @@ def extraer(ruta):
             "Verifica que exista la carpeta data/ con el CSV."
         )
         return []
+
+
+def transformar(filas):
+    """
+    Agrega la produccion diaria por (pozo, mes).
+
+    Devuelve (registros, descartadas): una lista de tuplas
+    (pozo, mes, dias_produccion, petroleo_total, petroleo_promedio_diario)
+    y la cantidad de filas descartadas por datos invalidos.
+    """
+    acumulado = defaultdict(lambda: [0, 0.0])
+    descartadas = 0
+
+    for fila in filas:
+        try:
+            volumen = float(fila["oil_vol"])
+            mes = fila["fecha"][:7]  # 'YYYY-MM'
+            if volumen <= 0 or len(mes) != 7:
+                raise ValueError("fila invalida")
+        except (ValueError, KeyError):
+            descartadas += 1
+            continue
+
+        parcial = acumulado[(fila["pozo"], mes)]
+        parcial[0] += 1
+        parcial[1] += volumen
+
+    registros = [
+        (pozo, mes, dias, round(total, 2), round(total / dias, 2))
+        for (pozo, mes), (dias, total) in sorted(acumulado.items())
+    ]
+    return registros, descartadas
